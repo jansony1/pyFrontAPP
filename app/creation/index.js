@@ -271,7 +271,7 @@ var List = React.createClass({
 
   //加载详情页
   _loadPage(data){
-    console.log(data.video)
+    console.log('推送数据为：'+JSON.stringify(data))
     this.props.navigator.push({
       name:'detail',
       component: Detail,

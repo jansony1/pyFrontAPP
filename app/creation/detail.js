@@ -28,8 +28,28 @@ var width = Dimensions.get('window').width
 
 var cachedResults = {
   nextPage: 1,
-  items: [],
+  items: {
+    // creation:{
+    //   id: 0,
+    //   total: 0,
+    //   data: null ,
+    // }
+  },
   total:0
+
+ 
+  // items:[
+  //   creation1:{
+  //     id:
+  //     total: 
+  //     data:
+  //   }
+  //   creation2:{
+  //     id:
+  //     total: 
+  //     data:
+  //   }
+  // ]
 }
 
 var detail = React.createClass({
@@ -37,9 +57,14 @@ var detail = React.createClass({
   getInitialState() {
      var data = this.props.data
 
-    var ds = new ListView.DataSource({rowHasChanged: (r1, r2) => r1 !== r2});
+     var ds = new ListView.DataSource({rowHasChanged: (r1, r2) => r1 !== r2});
      return {
       data: data,
+      items: {
+        creationId: null,
+        total: 0,
+        data: null
+      },
 
       // comment
       dataSource: ds.cloneWithRows([]),
@@ -190,24 +215,38 @@ _submit(){
   request.post(url, body)
     .then(function(data){
         if(data && data.success){
+          
           if(data && data.data.length> 0){
-            var items = cachedResults.items.slice()
+            var creationId = that.state.data._id
+            if(cachedResults.items[creationId] == null ){
+              cachedResults.items[creationId] = {
+                id: that.state.data._id,
+                total: 0,
+                data: null,
+              }
+              console.log('第一次对该视频进行评论')
+            }
+            var items = cachedResults.items[creationId].data.slice()
+          //  var items = cachedResults.items.creation[that.state.data._id].slice()
 
             items = data.data.concat(items)
 
             console.log('item:'+ JSON.stringify(items))
 
-            cachedResults.items = items 
-            cachedResults.total = cachedResults.total + 1 
+            cachedResults.items[creationId].data= items 
+            cachedResults.items[creationId].total=  cachedResults.items[creationId].total + 1 
 
             that.setState({
               content: '',
               isSending: false,
-              dataSource: that.state.dataSource.cloneWithRows(cachedResults.items)
+              dataSource: that.state.dataSource.cloneWithRows(cachedResults.items[creationId].data)
             })
             that._setModalVisible(false)
           }
         }
+         that.setState({
+              isSending: false,
+        })
     })
     .catch((err) => {
         console.log(err)
@@ -223,6 +262,8 @@ _submit(){
     // for header of comment area control
    _renderHeader() {
       var data = this.state.data
+
+      //console.log('header avatar: '+ JSON.stringify(data))
 
       return (
         <View style={styles.listHeader}>
@@ -278,6 +319,7 @@ _submit(){
 
   _renderRow(row) {
     var user = this.state.user
+    console.log('user:'+ JSON.stringify(user))
     //console.log('*************replyBy:'+ row.replyBy)
     if(typeof row.replyBy == 'string'){ //这个地方因为下面row.replyBy.avatar 没返回，所以这样写，也可以改后端让其返回
       var row = {
@@ -288,8 +330,9 @@ _submit(){
         content: row.content
       }
 
-    //  console.log('here:'+ row.replyBy.avatar)
+    // console.log('here1:'+ row.replyBy.avatar)
     }
+    //console.log('here:*****************'+ row)
     return (
       <View key={row._id} style={styles.replyBox}>
         <Image style={styles.replyAvatar} source={{uri:util.avatar(row.replyBy.avatar)}} />
@@ -309,6 +352,7 @@ _submit(){
      })
 
 
+
     var url = config.api.base2 +config.api.comment
 
     request.get(url, {
@@ -318,20 +362,43 @@ _submit(){
       })
       .then((data) => {
          if(data && data.success){
-          if(data.data.length>0){
-            var items = cachedResults.items.slice()
-            items = items.concat(data.data)
-            cachedResults.nextPage += 1
-            //j将总共的数据存入缓存出数据中
-            cachedResults.total = data.total
-            cachedResults.items = items
+           if(data.data.length>0 ){
+              if(cachedResults.items[that.state.data._id] == null){ //如果缓存里面没数据我们来创建一哈
+                 console.log('缓存中暂无数据')
+                  var creationId = that.state.data._id
+                  cachedResults.items[creationId] = {
+                    id: that.state.data._id,
+                    total: 0,
+                    data: null,
+                  }
+                  console.log('缓存数据为：'+cachedResults.items[creationId] )
+              
+                  cachedResults.nextPage += 1
+                  //j将总共的数据存入缓存出数据中
+                  cachedResults.items[creationId].total = data.total
+                  cachedResults.items[creationId].data = data.data
 
-            that.setState({
+                  that.setState({
+                      dataSource: that.state.dataSource.cloneWithRows(cachedResults.items[creationId].data)
+                  })
+              }
+              else if(data.total !== cachedResults.items[that.state.data._id].total){ //当缓存不为空，才有必要判断是否需要更新
+                  var creationId = that.state.data._id
+                  var items = cachedResults.items[creationId].data.slice()
+                  items = items.concat(data.data)
+                  cachedResults.nextPage += 1
+                  //j将总共的数据存入缓存出数据中
+                  cachedResults.items[creationId].total = data.total
+                  cachedResults.items[creationId].data = items
+
+                  that.setState({
+                      dataSource: that.state.dataSource.cloneWithRows(cachedResults.items[creationId].data)
+                  })
+              }
+           }
+           that.setState({
                 isLoadingTail:false,
-                dataSource: that.state.dataSource.cloneWithRows(cachedResults.items)
             })
-            
-          }
          }
       })
       .catch((error) => {
@@ -348,7 +415,7 @@ _submit(){
 
   _fetchMoreData(){
 
-    if(!this._hasMore() || this.state.isLoadingTail){
+    if(this.state.isLoadingTail){
       this.setState({
           isLoadingTail: false   //加载完数据了   
       })
