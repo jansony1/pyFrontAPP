@@ -1,5 +1,9 @@
 
 
+/*
+** this site is for detailed page of creation   
+**
+*/
 
 var ReactNative = require('react-native')
 var React = require('react')

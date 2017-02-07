@@ -1,4 +1,9 @@
-
+/**
+* 
+author:zhenyu
+revised-date: 2016-02-07
+intro:this site is used for creation list and home page of this app
+*/
 
 
 var ReactNative = require('react-native')
